@@ -10,7 +10,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(cache = TRUE)
+#knitr::opts_chunk$set(cache = TRUE)
 knitr::opts_chunk$set(message = FALSE)
 ```
 
@@ -47,7 +47,7 @@ env_comp_end <- avida_data %>% filter(res == 100, environment %in% c("empty", "l
 #### Filter length
 
 ```{r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=change, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation") + scale_y_continuous("Change") + scale_color_discrete("Filter length (t)") + scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
+ggplot(data=empty) + stat_summary(aes(x=generation, y=change, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Change") + scale_color_discrete("Filter length (t)") + scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
 ggsave("../figs/avida_filter_change.png")
 ```
 
@@ -63,7 +63,7 @@ Okay, from this we tcan tell that using population size as t always produces rea
 #### Environment
 ```{r}
 
-ggplot(data=env_comp) + stat_summary(aes(x=generation, y=change, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation") + scale_y_continuous("Change") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
+ggplot(data=env_comp) + stat_summary(aes(x=generation, y=change, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Change") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
 ggsave("../figs/avida_env_change.png")
 ```
 
@@ -74,7 +74,7 @@ ggsave("../figs/avida_env_change_end.png")
 
 ### Novelty
 ``` {r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=novelty, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation") + scale_y_continuous("Novelty") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
+ggplot(data=empty) + stat_summary(aes(x=generation, y=novelty, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Novelty") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
 ggsave("../figs/avida_filter_novelty.png")
 ```
 
@@ -89,7 +89,7 @@ Novelty is almsot identical to change, consistent with fitness continuously incr
 #### Environment
 ```{r}
 
-ggplot(data=env_comp) + stat_summary(aes(x=generation, y=novelty, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation") + scale_y_continuous("Novelty") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
+ggplot(data=env_comp) + stat_summary(aes(x=generation, y=novelty, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Novelty") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
 ggsave("../figs/avida_env_novelty.png")
 ```
 
@@ -100,7 +100,7 @@ ggsave("../figs/avida_env_novelty_end.png")
 
 ### Ecology
 ``` {r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=ecology, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation") + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
+ggplot(data=empty) + stat_summary(aes(x=generation, y=ecology, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
 ggsave("../figs/avida_filter_ecology.png")
 ```
 
@@ -116,7 +116,7 @@ Ecology seems a little more robust to using a low filter time (the tail on 500 i
 #### Environment
 ```{r}
 
-ggplot(data=env_comp) + stat_summary(aes(x=generation, y=ecology, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation") + scale_y_continuous("Ecology") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
+ggplot(data=env_comp) + stat_summary(aes(x=generation, y=ecology, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Ecology") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
 ggsave("../figs/avida_env_ecology.png")
 ```
 
@@ -127,7 +127,7 @@ ggsave("../figs/avida_env_ecology_end.png")
 
 ### Complexity
 ``` {r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=complexity, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation") + scale_y_continuous("Complexity") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")
+ggplot(data=empty) + stat_summary(aes(x=generation, y=complexity, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Complexity") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")
 ggsave("../figs/avida_filter_complexity.png")
 ```
 
@@ -143,7 +143,7 @@ By the end, complexity is pretty consistent in all of the populations, so there'
 #### Environment
 ```{r}
 
-ggplot(data=env_comp) + stat_summary(aes(x=generation, y=complexity, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation") + scale_y_continuous("Complexity") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
+ggplot(data=env_comp) + stat_summary(aes(x=generation, y=complexity, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Complexity") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
 ggsave("../figs/avida_env_complexity.png")
 ```
 
@@ -152,7 +152,7 @@ ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=complexity, fill=a
 ggsave("../figs/avida_env_complexity_end.png")
 ```
 
-## Analysis of population size
+# NK Model Analysis
 
 
 
@@ -163,20 +163,20 @@ ggsave("../figs/avida_env_complexity_end.png")
 nk_data$treatment <- factor(nk_data$treatment, levels = c("K_3_N_20_POP_200_MUT_3_standard", "K_10_N_20_POP_200_MUT_3_standard","K_3_N_100_POP_200_MUT_3_standard","K_3_N_20_POP_200_MUT_1_standard","K_3_N_20_POP_200_MUT_6_standard","K_3_N_20_POP_20_MUT_3_standard","K_3_N_20_POP_1000_MUT_3_standard","K_3_N_20_POP_200_MUT_3_changing_environment","K_3_N_20_POP_200_MUT_3_fitness_sharing","K_3_N_20_POP_200_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_1_standard_5000_updates","K_3_N_20_POP_200_MUT_3_changing_environment_5000_updates","K_0_N_20_POP_200_MUT_3_changing_environment_5000_updates","K_3_N_20_POP_20_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_6_standard_5000_updates","K_3_N_20_POP_1000_MUT_3_standard_5000_updates","K_3_N_20_POP_5000_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_3_fitness_sharing_5000_updates"))
 nk_data$POP_SIZE <- as.factor(nk_data$POP_SIZE)
 nk_data$MUT <- as.factor(nk_data$MUT)
-treatment_labels <- c("Baseline", "High K (10)", "High N (100)", "Low mutation\n(1)", "High mutation\n(6)", "Small pop\n(20)", "Large pop\n(1000)", "Changing\nenvironment", "Fitness\nsharing")
+treatment_labels <- c("Baseline", "High\nK (10)", "High\nN (100)", "Low\nmutation\n(1)", "High\nmutation\n(6)", "Small pop\n(20)", "Large pop\n(1000)", "Changing\nenvironment", "Fitness\nsharing")
 
 
 ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Change metric") + geom_violin(aes(y=change,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))
-ggsave("../figs/changeboxplots.png")
+ggsave("../figs/changeboxplots.png", width= 10, height=6)
 
 ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Novelty metric") + geom_violin(aes(y=novelty,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))
-ggsave("../figs/noveltyboxplots.png")
+ggsave("../figs/noveltyboxplots.png", width= 10, height=6)
 
 ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Ecology metric") + geom_violin(aes(y=ecological,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))
-ggsave("../figs/ecologyboxplots.png")
+ggsave("../figs/ecologyboxplots.png", width= 10, height=6)
 
 ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + geom_violin(aes(y=complexity,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + scale_y_log10("Complexity metric", breaks=c(10,20, 100)) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))
-ggsave("../figs/complexityboxplots.png")
+ggsave("../figs/complexityboxplots.png", width= 10, height=6)
 
 ggplot(data=subset(nk_data, nk_data$change > -1 & (nk_data$treatment == "K_3_N_20_POP_20_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_1000_MUT_3_standard_5000_updates"| nk_data$treatment == "K_3_N_20_POP_5000_MUT_3_standard_5000_updates")), aes(group=POP_SIZE, x=uid)) + stat_summary(fun.data = mean_cl_boot, aes(y=ecological,color=POP_SIZE, fill=POP_SIZE), geom="smooth") + theme_classic() + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="bottom", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14)) + scale_x_continuous("Generation") +scale_y_continuous("Ecology metric")  + labs(color="Population size", fill="Population size")
 ggsave("../figs/ecological_mean_ci_pop_size.png")
