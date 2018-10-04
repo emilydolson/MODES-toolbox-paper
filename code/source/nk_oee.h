@@ -24,7 +24,8 @@ EMP_BUILD_CONFIG( NKConfig,
   VALUE(POP_SIZE, uint32_t, 1000, "Number of organisms in the popoulation."),
   VALUE(MAX_GENS, uint32_t, 2000, "How many generations should we process?"),
   VALUE(MUT_RATE, double, .005, "Probability of each site being mutated."),
- 
+  VALUE(CHANGE_RATE, uint32_t, 100000, "How frequently should the environment change?"),
+
   GROUP(SELECTION_METHODS, "Settings related to selection"),
   VALUE(SELECTION, uint32_t, 0, "Selection method. 0 = Tournament, 1 = fitness sharing, 2 = lexicase, 3 = Eco-EA, 4 = Random"),
   VALUE(TOURNAMENT_SIZE, int, 2, "For tournament selection, number of individuals to include in tournament"),
@@ -48,6 +49,7 @@ class NKWorld : public emp::World<BitOrg> {
     uint32_t MAX_GENS;
     uint32_t MUT_RATE;
     uint32_t SELECTION;
+    uint32_t CHANGE_RATE;
     int TOURNAMENT_SIZE;
     int MODES_RESOLUTION;
     int FILTER_LENGTH;
@@ -76,6 +78,7 @@ class NKWorld : public emp::World<BitOrg> {
         FILTER_LENGTH = config.FILTER_LENGTH();
         SHARING_THRESHOLD = config.SHARING_THRESHOLD();
         SHARING_ALPHA = config.SHARING_ALPHA();
+        CHANGE_RATE = config.CHANGE_RATE();
 
         landscape = emp::NKLandscape(N, K, *random_ptr);
 
@@ -97,6 +100,7 @@ class NKWorld : public emp::World<BitOrg> {
         oee->SetGenerationInterval(FILTER_LENGTH);
         AddSystematics(sys);
         OnUpdate([this](int ud){oee->Update(ud); oee_file.Update(ud);});
+        OnUpdate([this](int ud){if (emp::Mod(ud, CHANGE_RATE) == 0) {landscape = emp::NKLandscape(N, K, *random_ptr);}});
 
         SetupFitnessFile().SetTimingRepeat(10);
         SetupSystematicsFile().SetTimingRepeat(10);

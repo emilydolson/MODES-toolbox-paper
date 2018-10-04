@@ -1,1 +1,2 @@
 data/avida_data.csv filter=lfs diff=lfs merge=lfs -text
+data/nk_data.csv filter=lfs diff=lfs merge=lfs -text
