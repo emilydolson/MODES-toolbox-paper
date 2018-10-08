@@ -1,9 +1,13 @@
 import glob
+import os
 import pandas as pd
 
 all_data = []
 
-for path in glob.glob("TOURNAMENTSIZE*/*"):
+for path in glob.glob("*/[0-9]*"):
+   if not os.path.exists(path+"/oee.csv"):
+       continue
+
    df = pd.read_csv(path+"/oee.csv", index_col="generation")
    local_data = {}
 
@@ -18,6 +22,8 @@ for path in glob.glob("TOURNAMENTSIZE*/*"):
 
    for val in local_data:
         df[val] = local_data[val]
+
+   df["treatment"] = path.split("/")[-2]
 
    all_data.append(df)
 

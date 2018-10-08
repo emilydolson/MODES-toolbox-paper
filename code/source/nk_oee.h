@@ -47,9 +47,9 @@ class NKWorld : public emp::World<BitOrg> {
     uint32_t K;
     uint32_t POP_SIZE;
     uint32_t MAX_GENS;
-    uint32_t MUT_RATE;
     uint32_t SELECTION;
     uint32_t CHANGE_RATE;
+    double MUT_RATE;
     int TOURNAMENT_SIZE;
     int MODES_RESOLUTION;
     int FILTER_LENGTH;
@@ -91,7 +91,7 @@ class NKWorld : public emp::World<BitOrg> {
             SetFitFun(fit_fun);
         }
 
-        emp::Ptr<emp::Systematics<BitOrg, BitOrg, emp::datastruct::oee_data<emp::vector<int>>>> sys;
+        emp::Ptr<emp::Systematics<BitOrg, BitOrg> > sys;
         sys.New([](const BitOrg & o){return o;});
         oee.New(sys, [fit_fun](BitOrg & org){return emp::Skeletonize(org, fit_fun);}, [](const emp::vector<int> & org){
             return org.size() - emp::Count(org, -1);
@@ -123,6 +123,10 @@ class NKWorld : public emp::World<BitOrg> {
             for (uint32_t j = 0; j < N; j++) next_org[j] = random_ptr->P(0.5);
             Inject(next_org);
         }
+            // Resize(POP_SIZE);
+            // emp::EliteSelect(*this, 1, POP_SIZE);
+            // Update();
+            // std::cout << GetNumOrgs() << " orgs" << std::endl;
 
         // Setup the mutation function.
         std::function<size_t(BitOrg &, emp::Random &)> mut_fun =
