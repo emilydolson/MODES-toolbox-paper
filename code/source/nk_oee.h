@@ -24,8 +24,11 @@ EMP_BUILD_CONFIG( NKConfig,
   VALUE(POP_SIZE, uint32_t, 1000, "Number of organisms in the popoulation."),
   VALUE(MAX_GENS, uint32_t, 2000, "How many generations should we process?"),
   VALUE(MUT_RATE, double, .005, "Probability of each site being mutated."),
-  VALUE(CHANGE_RATE, uint32_t, 100000, "How frequently should the environment change?"),
 
+  GROUP(CHANGING_ENVIRONMENT, "Settings related to changing environments"),
+  VALUE(CHANGE_RATE, uint32_t, 100000, "How frequently should the environment change?"),
+  VALUE(CHANGE_TYPE, uint32_t, 0, "0 = Complete change, 1 = Oscilating"),
+  
   GROUP(SELECTION_METHODS, "Settings related to selection"),
   VALUE(SELECTION, uint32_t, 0, "Selection method. 0 = Tournament, 1 = fitness sharing, 2 = lexicase, 3 = Eco-EA, 4 = Random"),
   VALUE(TOURNAMENT_SIZE, int, 2, "For tournament selection, number of individuals to include in tournament"),
@@ -42,12 +45,14 @@ using BitOrg = emp::BitVector;
 class NKWorld : public emp::World<BitOrg> {
 
     enum class SELECTION_METHOD { TOURNAMENT=0, SHARING=1, LEXICASE=2, ECOEA=3, RANDOM=4 };
+    enum class CHANGE_METHOD { COMPLETE=0, OSCILLATING=1 };
 
     uint32_t N;
     uint32_t K;
     uint32_t POP_SIZE;
     uint32_t MAX_GENS;
     uint32_t SELECTION;
+    uint32_t CHANGE_TYPE;
     uint32_t CHANGE_RATE;
     double MUT_RATE;
     int TOURNAMENT_SIZE;
@@ -56,7 +61,9 @@ class NKWorld : public emp::World<BitOrg> {
     double SHARING_ALPHA;
     double SHARING_THRESHOLD;
 
-    emp::NKLandscape landscape;
+    emp::vector<emp::NKLandscape> landscapes;
+    int curr_landscape = 0;
+
     emp::Ptr<emp::OEETracker<BitOrg, BitOrg, emp::vector<int>>> oee;
     emp::DataFile oee_file;
 
@@ -79,11 +86,16 @@ class NKWorld : public emp::World<BitOrg> {
         SHARING_THRESHOLD = config.SHARING_THRESHOLD();
         SHARING_ALPHA = config.SHARING_ALPHA();
         CHANGE_RATE = config.CHANGE_RATE();
+        CHANGE_TYPE = config.CHANGE_TYPE();
 
-        landscape = emp::NKLandscape(N, K, *random_ptr);
+        landscapes.push_back(emp::NKLandscape(N, K, *random_ptr));
+
+        if (CHANGE_TYPE == (uint32_t) CHANGE_METHOD::OSCILLATING) {
+            landscapes.push_back(emp::NKLandscape(N, K, *random_ptr));
+        }
 
         std::function<double(BitOrg&)> fit_fun =
-            [this](BitOrg & org){ return landscape.GetFitness(org); };
+            [this](BitOrg & org){ return landscapes[curr_landscape].GetFitness(org); };
 
         if (SELECTION == (uint32_t) SELECTION_METHOD::SHARING) {
             SetSharedFitFun(fit_fun, [](BitOrg & org1, BitOrg & org2){return calc_hamming_distance(org1, org2);}, SHARING_THRESHOLD, SHARING_ALPHA);
@@ -100,7 +112,7 @@ class NKWorld : public emp::World<BitOrg> {
         oee->SetGenerationInterval(FILTER_LENGTH);
         AddSystematics(sys);
         OnUpdate([this](int ud){oee->Update(ud); oee_file.Update(ud);});
-        OnUpdate([this](int ud){if (emp::Mod(ud, CHANGE_RATE) == 0) {landscape = emp::NKLandscape(N, K, *random_ptr);}});
+        OnUpdate([this](int ud){if (emp::Mod(ud, CHANGE_RATE) == 0) {DoChange();}});
 
         SetupFitnessFile().SetTimingRepeat(10);
         SetupSystematicsFile().SetTimingRepeat(10);
@@ -165,6 +177,7 @@ class NKWorld : public emp::World<BitOrg> {
             //      break;
             default:
                 emp_assert(false && "INVALID SELECTION SCEHME", SELECTION);
+                exit(1);
                 break;
         }
         Update();
@@ -174,6 +187,32 @@ class NKWorld : public emp::World<BitOrg> {
         for (size_t u = 0; u <= MAX_GENS; u++) {
             RunStep();
         }  
+    }
+
+    void DoChange() {
+        switch(CHANGE_TYPE) {
+            case (uint32_t)CHANGE_METHOD::COMPLETE :
+                ChangeComplete();
+                break;
+            case (uint32_t)CHANGE_METHOD::OSCILLATING :
+                ChangeOscillating();
+                break;
+            default:
+                emp_assert(false && "INVALID CHANGE TYPE", CHANGE_TYPE);
+                exit(1);
+                break;    
+        }
+    }
+
+    void ChangeComplete() {
+        landscapes[0] = emp::NKLandscape(N, K, *random_ptr);
+    }
+
+    void ChangeOscillating() {
+        curr_landscape++;
+        if (curr_landscape >= (int)landscapes.size()) {
+            curr_landscape = 0;
+        }
     }
 
 };

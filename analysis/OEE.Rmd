@@ -152,38 +152,115 @@ ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=complexity, fill=a
 ggsave("../figs/avida_env_complexity_end.png")
 ```
 
-# NK Model Analysis
+# NK Landscape Analysis
 
-
+First we need to clean up the NK dataframe a little
 
 
 ```{r}
 
 #Order treatments correctly
-nk_data$treatment <- factor(nk_data$treatment, levels = c("K_3_N_20_POP_200_MUT_3_standard", "K_10_N_20_POP_200_MUT_3_standard","K_3_N_100_POP_200_MUT_3_standard","K_3_N_20_POP_200_MUT_1_standard","K_3_N_20_POP_200_MUT_6_standard","K_3_N_20_POP_20_MUT_3_standard","K_3_N_20_POP_1000_MUT_3_standard","K_3_N_20_POP_200_MUT_3_changing_environment","K_3_N_20_POP_200_MUT_3_fitness_sharing","K_3_N_20_POP_200_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_1_standard_5000_updates","K_3_N_20_POP_200_MUT_3_changing_environment_5000_updates","K_0_N_20_POP_200_MUT_3_changing_environment_5000_updates","K_3_N_20_POP_20_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_6_standard_5000_updates","K_3_N_20_POP_1000_MUT_3_standard_5000_updates","K_3_N_20_POP_5000_MUT_3_standard_5000_updates","K_3_N_20_POP_200_MUT_3_fitness_sharing_5000_updates"))
+nk_data <- transform(nk_data, treatment = case_when(
+    K == 10 ~ "High K\n(10)", 
+    N == 100 ~ "High N\n(100)", 
+    MUT_RATE == .005 ~ "Low\nmutation\n(.005)", 
+    MUT_RATE == .1 ~ "High\nmutation\n(.1)",
+    POP_SIZE == 20 ~ "Small\npop\n(20)",
+    POP_SIZE == 2000 ~ "Large\npop\n(2000)",
+    CHANGE_TYPE == 1 ~ "Oscillating\nenvironment",
+    CHANGE_RATE == 500 ~ "Changing\nenvironment",
+    SELECTION == 1 ~ "Fitness\nsharing",
+    TRUE   ~ "Base" 
+))
+
 nk_data$POP_SIZE <- as.factor(nk_data$POP_SIZE)
-nk_data$MUT <- as.factor(nk_data$MUT)
-treatment_labels <- c("Baseline", "High K (10)", "High N (100)", "Low mutation\n(1)", "High mutation\n(6)", "Small pop\n(20)", "Large pop\n(1000)", "Changing\nenvironment", "Fitness\nsharing")
+nk_data$MUT_RATE <- as.factor(nk_data$MUT_RATE)
+nk_data$treatment <- factor(nk_data$treatment, levels=c("Base",  "Low\nmutation\n(.005)","High\nmutation\n(.1)","Small\npop\n(20)","Large\npop\n(2000)","Oscillating\nenvironment","High K\n(10)","High N\n(100)", "Changing\nenvironment", "Fitness\nsharing"))
 
+nk_endpoints <- nk_data %>% filter(generation == 5000)
+nk_filter_pop_size <- nk_data %>% filter(FILTER_LENGTH == POP_SIZE, treatment != "Changing\nenvironment")
+nk_filter_pop_size_endpoints <- nk_filter_pop_size %>% filter(generation == 5000)
 
-ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Change metric") + geom_violin(aes(y=change,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))+ theme(axis.text.x = element_text(angle = 45, vjust = .55))
+```
+
+### Change
+
+First lets take a look at change over time across conditions
+
+```{r}
+ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=change, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Change")
+```
+
+Wow, that's too many lines. As expected, Base, Fitness Sharing, and Oscillating are the only ones really doing interesting stuff over time (the spike in large pop is just the change it detects when the filter time first passes). Let's make a plot with just them.
+
+```{r}
+ggplot(data=nk_filter_pop_size %>% filter(treatment %in% c("Base", "Fitness\nsharing", "Oscillating\nenvironment"))) + stat_summary(fun.data = mean_cl_boot, aes(y=change, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Change")  + scale_color_discrete("") + scale_fill_discrete("")
+ggsave("../figs/change_changing_environments.png")
+```
+
+And let's take a look at the end points to summarize all the conditions
+
+```{r}
+ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=change, fill=treatment)) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = treatment), position = position_jitter(height = .1, width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + scale_y_continuous("Change")  + scale_x_discrete("") + theme(legend.position="None")
 ggsave("../figs/changeboxplots.png")
+```
 
-ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Novelty metric") + geom_violin(aes(y=novelty,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14)) + theme(axis.text.x = element_text(angle = 45, vjust = .55))
+### Novelty
+
+```{r}
+ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=novelty, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Novelty") + scale_color_discrete("") + scale_fill_discrete("")
+```
+
+Again, too many lines, but we can see that there is a general downward trend amongst those that start high enough to trend downward.
+
+Let's plot an informative subset of the conditions (changing mutation rates):
+
+```{r}
+ggplot(data=nk_filter_pop_size %>% filter(treatment %in% c("Base", "Low\nmutation\n(.005)", "High\nmutation\n(.1)"))) + stat_summary(fun.data = mean_cl_boot, aes(y=novelty, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Novelty") + scale_color_discrete("") + scale_fill_discrete("")
+ggsave("../figs/novelty_mean_mut_rate.png")
+```
+
+And a summary of the endpoints of everything
+
+```{r}
+ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=novelty, fill=treatment)) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = treatment), position = position_jitter(height = .1, width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + scale_y_continuous("Novelty")  + scale_x_discrete("") + theme(legend.position="None")
 ggsave("../figs/noveltyboxplots.png")
 
-ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + scale_y_continuous("Ecology metric") + geom_violin(aes(y=ecological,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14)) + theme(axis.text.x = element_text(angle = 45, vjust = .55))
-ggsave("../figs/ecologyboxplots.png")
-
-ggplot(data=subset(nk_data, nk_data$uid == 1990 & !grepl("*5000_updates", nk_data$treatment)), aes(group=treatment, x=treatment)) + geom_violin(aes(y=complexity,fill=treatment), scale = "width") + theme_classic() +scale_x_discrete("Treatment", labels=treatment_labels) + scale_y_log10("Complexity metric", breaks=c(10,20, 100)) + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="None", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14)) + theme(axis.text.x = element_text(angle = 45, vjust = .55))
-ggsave("../figs/complexityboxplots.png")
-
-ggplot(data=subset(nk_data, nk_data$change > -1 & (nk_data$treatment == "K_3_N_20_POP_20_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_1000_MUT_3_standard_5000_updates"| nk_data$treatment == "K_3_N_20_POP_5000_MUT_3_standard_5000_updates")), aes(group=POP_SIZE, x=uid)) + stat_summary(fun.data = mean_cl_boot, aes(y=ecological,color=POP_SIZE, fill=POP_SIZE), geom="smooth") + theme_classic() + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="bottom", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14)) + scale_x_continuous("Generation") +scale_y_continuous("Ecology metric")  + labs(color="Population size", fill="Population size")
-ggsave("../figs/ecological_mean_ci_pop_size.png")
-ggplot(data=subset(nk_data, nk_data$change > -1 & (nk_data$treatment == "K_3_N_20_POP_200_MUT_1_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_6_standard_5000_updates")), aes(group=treatment, x=uid)) + stat_summary(fun.data = mean_cl_boot, aes(y=novelty,color=MUT, fill=MUT), geom="smooth") + theme_classic() + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), legend.position="bottom", axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14))+ scale_x_continuous("Generation") + scale_y_continuous("Novelty metric") + labs(color="Mutation rate", fill="Mutation rate")
-ggsave("../figs/novelty_mean_mut_rate.png")
-ggplot(data=subset(nk_data, nk_data$change > -1 & (nk_data$treatment == "K_3_N_20_POP_200_MUT_3_changing_environment_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_fitness_sharing_5000_updates")), aes(group=treatment, x=uid)) + stat_summary(fun.data = mean_cl_boot, aes(y=change,color=treatment, fill=treatment), geom="smooth") + theme_classic() + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14), legend.position="bottom")+ scale_y_continuous("Change metric") + scale_x_continuous("Generation")  + scale_color_discrete("Treatment ", labels=c("Baseline", "Changing environment", "Fitness sharing")) + scale_fill_discrete("Treatment ",labels=c("Baseline", "Changing environment", "Fitness sharing"))
-ggsave("../figs/change_changing_environments.png")
-ggplot(data=subset(nk_data, nk_data$complexity > -1 & (nk_data$treatment == "K_3_N_20_POP_200_MUT_3_standard_5000_updates" | nk_data$treatment == "K_3_N_20_POP_200_MUT_3_fitness_sharing_5000_updates")), aes(group=treatment, x=uid)) + stat_summary(fun.data = mean_cl_boot, aes(y=complexity,color=treatment, fill=treatment), geom="smooth") + theme_classic() + theme(axis.line.x=element_line("black"), axis.line.y=element_line("black"), axis.title=element_text(size = 18), legend.text=element_text(size=14), axis.text=element_text(size=14), legend.position="bottom")+ scale_y_continuous("Complexity metric") + scale_x_continuous("Generation")  + scale_color_discrete("Treatment ", labels=c("Baseline", "Fitness sharing")) + scale_fill_discrete("Treatment ",labels=c("Baseline", "Fitness sharing"))
-ggsave("../figs/complexity_fitness_sharing.png")
 ```
+
+### Ecology
+
+```{r}
+ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=ecology, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Ecology") + scale_color_discrete("") + scale_fill_discrete("")
+```
+
+Really, the main take-away here is that fitness sharing creates ecology and nothing else does. We probably don't need to include a graph of ecology over time in the paper.
+
+
+The endpoints are informative, though:
+
+```{r}
+ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=ecology, fill=treatment)) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = treatment), position = position_jitter(height = .1, width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + scale_y_continuous("Ecology")  + scale_x_discrete("") + theme(legend.position="None")
+ggsave("../figs/ecologyboxplots.png")
+```
+
+### Complexity
+
+```{r}
+ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=complexity, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Complexity") + scale_color_discrete("") + scale_fill_discrete("")
+```
+
+Obviously high N can have higher complexity and it approaches the maximum more gradually. It's throwing off the scale, though, so let's make a graph without it.
+
+```{r}
+ggplot(data=nk_filter_pop_size %>% filter(treatment != "High N\n(100)")) + stat_summary(fun.data = mean_cl_boot, aes(y=complexity, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Complexity") + scale_color_discrete("") + scale_fill_discrete("")
+```
+
+Nothing super interesting about looking at this over time. As expected, the oscillating environment is periodically pushed away from maximum complexity. We can just graph the endpoints and get the interesting parts of the story which are that fitness sharing, small pop, and high mutation are generally lower.
+
+```{r}
+ggplot(data=nk_filter_pop_size_endpoints %>% filter(treatment != "High N\n(100)"), aes(x=treatment, y=complexity, fill=treatment)) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = treatment), position = position_jitter(height = .1, width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + scale_y_continuous("Complexity")  + scale_x_discrete("") + theme(legend.position="None")
+ggsave("../figs/complexityboxplots.png")
+```
+
+Oh, right, the re-implemented version of the NK Landscape incorporates fitness sharing into the fitness function itself (i.e. the one that is used for the complexity calculation). As a result, complexity in fitness sharing isn't actually decreased notably despite the fact that the population is presumably not sitting on an actual fitness peak in the NK Landscape. This is probably the correct way to measure it though, since fitness sharing does change the fitness landscape.
