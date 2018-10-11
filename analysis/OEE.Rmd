@@ -8,11 +8,17 @@ output:
 
 ---
 
+In this document, we'll walk through the analysis for all of the data from the paper introducing the MODES toolbox. Most of the commentary was written at the point of initial analysis, to make it clear which statistical tests were done post-hoc. Some details were filled in after the fact to improve readability.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_chunk$set(cache = TRUE)
 knitr::opts_chunk$set(message = FALSE)
 ```
+
+# Setup
+
+First we need to set some stuff up and read in the data.
 
 ```{r}
 # Do set up and collect data
@@ -32,51 +38,91 @@ avida_data <- read.csv("../data/avida_data.csv")
 
 ```
 
+Okay, now we're ready to explore the data
+
 # Avida analysis
 
+Let's start with the Avida data. We'll start by setting up some useful subsets of the data
 
 ```{r}
+# Just the data from the empty environment (for exploring the effect of filter length)
 empty <- avida_data %>% filter(res == 100, environment %in% c("empty"), filter %in% c(500, 1000, 2000, 4000), fixedlength == 0)
+# Just the endpoints of the empty environment (for looking at the final distribution of metrics)
 empty_end <- avida_data %>% filter(res == 100, environment %in% c("empty"), filter %in% c(500, 1000, 2000, 4000), fixedlength == 0, generation == 200000)
+# Subset of data for comparing the empty environment to the logic-9 environment (exclude the filter length sweep)
 env_comp <- avida_data %>% filter(res == 100, environment %in% c("empty", "l9"), filter == population_size, fixedlength == 0)
+# And just the end points of that data
 env_comp_end <- avida_data %>% filter(res == 100, environment %in% c("empty", "l9"), filter == population_size, fixedlength == 0, generation == 200000)
 ```
 
-### Change
+## Change
+
+First let's take a look at the change metric
 
 #### Filter length
 
 ```{r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=change, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Change") + scale_color_discrete("Filter length (t)") + scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
-ggsave("../figs/avida_filter_change.png")
+# Line plot of change over time with bootstrapped confidence interval. Show separate lines for each filter length and make a plot for each population size
+ggplot(data=empty) + 
+  stat_summary(aes(x=generation, y=change, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + # Make lines + confidence interval
+  facet_wrap(~population_size) + # Different plot for each population size
+  scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + # Make sure axis labels don't overlap
+  scale_y_continuous("Change") + # Label y axis
+  scale_color_discrete("Filter length (t)") + scale_fill_discrete("Filter length (t)")  + # Label legend
+  geom_hline(yintercept=c(1,1), linetype="dotted") # Add line showing expected value
+ggsave("../figs/avida_filter_change.png") # Save figure
 ```
 
-Okay, looks like the effect of the filter length is roughly as expected. Higher filter times more closely approximate the known ground truth (change=1). It's a little hard to tell how close they get from this view. Let's try a rain-cloud plot:
+Okay, looks like the effect of the filter length is roughly as expected. Higher filter times more closely approximate the approximate ground truth (change=1). It's a little hard to tell how close they get from this view. Let's try a rain-cloud plot:
 
 ```{r}
-ggplot(data=empty_end, aes(x=as.factor(filter), y=change, fill=as.factor(filter))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~population_size, scales = "free_x") + scale_x_discrete("Filter length (t)") + scale_y_continuous("Change") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)") + geom_hline(yintercept=c(1,1), linetype="dotted") + theme(legend.position="None")
+# Rain-cloud plots are a cool new way to visualize distributions
+# Lets make one of change at the final time point so we can get an accurate read on the types of results we'd expect to see from using a given filter length
+ggplot(data=empty_end, aes(x=as.factor(filter), y=change, fill=as.factor(filter))) + 
+  geom_flat_violin(position = position_nudge(x = .2, y = 0)) + # Flat violin plot summarizes shape of data
+  geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + # Show actual data points 
+  stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + # Draw mean and bootstrapped confidence interval
+  facet_wrap(~population_size, scales = "free_x") + # Use different x axes for each plot because 4000 only exists for population size 2000
+  scale_x_discrete("Filter length (t)") + # label axes + legends
+  scale_y_continuous("Change") + 
+  scale_color_discrete("Filter length (t)") + 
+  scale_fill_discrete("Filter length (t)") + 
+  geom_hline(yintercept=c(1,1), linetype="dotted") + # Show expected changed value
+  theme(legend.position="None") # The axis and the legend are redundant
 ggsave("../figs/avida_filter_change_end.png")
 ```
 
-Okay, from this we tcan tell that using population size as t always produces reasonable results. Population size = t seems to get a little less noisey as population size increases, possibly due to the increased selection strength. The results of t=4000 for population size 2000 make it look like the actual ground truth is potentially a little below 1, which is reasonable (we don't necessarily expect change to occur in ever interval as evolution goes on). Even using half the population size as t appears to be generally reasonable. Once you go lower than that, though, things start to get pretty noisy. Using t greater than population size appears to clean things up a bit more, but there are diminishing returns. Based on this, we'd recommend population size or 2*population size as filter size.
+Okay, from this we can tell that using population size as t always produces reasonable results. Population size = t seems to get a little less noisey as population size increases, possibly due to the increased selection strength. The results of t=4000 for population size 2000 make it look like the actual ground truth is potentially a little below 1, which is reasonable (we don't necessarily expect change to occur in ever interval as evolution goes on). Even using half the population size as t appears to be generally reasonable. Once you go lower than that, though, things start to get pretty noisy. Using t greater than population size appears to clean things up a bit more, but there are diminishing returns. Based on this, we'd recommend population size or 2*population size as filter size when possible.
 
 #### Environment
-```{r}
 
+Okay, what about the effect of the environment?
+
+```{r}
+# Line plot of change over time with bootstrapped confidence interval. Show separate lines for each population size and make a plot for each environment
 ggplot(data=env_comp) + stat_summary(aes(x=generation, y=change, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Change") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
 ggsave("../figs/avida_env_change.png")
 ```
+
+In general, logic-9 is a lot higher (hence having to use free_y scales on the facet wrap). The effect of population size also seems to be potentially reversed between the two environments? In logic-9 larger populations allow for more change (which makes sense because it lets the population explore the fitness landscape in different directions). Perhaps the empty environment is reversed because the larger population size increases selection pressure and there's nothing to balance it out?
+
+It's a little hard to see what's going on at the end, so let's make another rain-cloud plot
 
 ```{r}
 ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=change, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Change") + geom_hline(yintercept=c(1,1), linetype="dotted")  + theme(legend.position="None")
 ggsave("../figs/avida_env_change_end.png")
 ```
 
-### Novelty
+Okay, this makes it clearer. There's really not much of an effect of population size on change in the empty environment. In Logic-9, the increase is primarily the result of the tail of the distribution getting longer.
+
+## Novelty
+What about novelty? Let's make the same plots.
+
 ``` {r}
 ggplot(data=empty) + stat_summary(aes(x=generation, y=novelty, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Novelty") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
 ggsave("../figs/avida_filter_novelty.png")
 ```
+
 
 ```{r}
 ggplot(data=empty_end, aes(x=as.factor(filter), y=novelty, fill=as.factor(filter))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~population_size, scales = "free_x") + scale_x_discrete("Filter length (t)") + scale_y_continuous("Novelty") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)") + geom_hline(yintercept=c(1,1), linetype="dotted") + theme(legend.position="None") + theme(legend.position="None")
@@ -84,9 +130,12 @@ ggsave("../figs/avida_filter_novelty_end.png")
 ```
 
 
-Novelty is almsot identical to change, consistent with fitness continuously increaseing (there shouldn't be opportunities for back-tracking)
+Novelty is almsot identical to change. This is consistent with fitness continuously increaseing (there shouldn't be opportunities for back-tracking)
 
 #### Environment
+
+And what about the effect of environment on novelty?
+
 ```{r}
 
 ggplot(data=env_comp) + stat_summary(aes(x=generation, y=novelty, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Novelty") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
@@ -98,22 +147,30 @@ ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=novelty, fill=as.f
 ggsave("../figs/avida_env_novelty_end.png")
 ```
 
-### Ecology
+Again, this is basically identical to the change results.
+
+## Ecology
+
+Okay, let's check out ecology.
+
 ``` {r}
-ggplot(data=empty) + stat_summary(aes(x=generation, y=ecology, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + geom_hline(yintercept=c(1,1), linetype="dotted")
+ggplot(data=empty) + stat_summary(aes(x=generation, y=ecology, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")
 ggsave("../figs/avida_filter_ecology.png")
 ```
 
-Note sure if that curving pattern is real or what's up with it.
+Note sure if that curving pattern is real or what's up with it. Interestingly, despite change generally being pretty close to 1, ecology is also pretty close to 1. This implies that the new genotypes registering as "change" don't wipe everything else out that rapidly - there must be genotypes hanging around for long periods of time.
 
 ```{r}
-ggplot(data=empty_end, aes(x=as.factor(filter), y=ecology, fill=as.factor(filter))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~population_size, scales = "free_x") + scale_x_discrete("Filter length (t)") + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)") + geom_hline(yintercept=c(1,1), linetype="dotted")  + theme(legend.position="None")
+ggplot(data=empty_end, aes(x=as.factor(filter), y=ecology, fill=as.factor(filter))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~population_size, scales = "free_x") + scale_x_discrete("Filter length (t)") + scale_y_continuous("Ecology") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")  + theme(legend.position="None")
 ggsave("../figs/avida_filter_ecology_end.png")
 ```
 
 Ecology seems a little more robust to using a low filter time (the tail on 500 in population size 2000 is much more reasonable), which makes sense, because things that are on their way out probably aren't very plentiful. The change in selection strength induced by increased population size doesn't seem to have a noticeable effect (filter time = population size prdocues equivalent ecology across population size). This also implies that the reason for low ecology is not a constraint induced by the population size (which is obvious in this case, because we know this is a single niche environment, but wouldn't be obvious if we didn't know as much about the system)
 
 #### Environment
+
+What about the effect of environment?
+
 ```{r}
 
 ggplot(data=env_comp) + stat_summary(aes(x=generation, y=ecology, color=as.factor(population_size), fill=as.factor(population_size)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~environment, scales = "free_y") + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.1, 0.1), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Ecology") + scale_color_discrete("Population size") + scale_fill_discrete("Population size")
@@ -125,7 +182,12 @@ ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=ecology, fill=as.f
 ggsave("../figs/avida_env_ecology_end.png")
 ```
 
-### Complexity
+Since these are both single niche environments, this is about what we would expect. Ecology is pretty constant and no higher than 1.
+
+## Complexity
+
+Last but not least, there's complexity.
+
 ``` {r}
 ggplot(data=empty) + stat_summary(aes(x=generation, y=complexity, color=as.factor(filter), fill=as.factor(filter)), fun.data="mean_cl_boot", geom="smooth") + facet_wrap(~population_size) + scale_x_continuous("Average Generation", labels = function(x) format(x, scientific = TRUE), expand=c(0.15, 0.15), limits=c(0,200000), breaks=c(0, 100000, 200000)) + scale_y_continuous("Complexity") + scale_color_discrete("Filter length (t)")+ scale_fill_discrete("Filter length (t)")
 ggsave("../figs/avida_filter_complexity.png")
@@ -147,19 +209,22 @@ ggplot(data=env_comp) + stat_summary(aes(x=generation, y=complexity, color=as.fa
 ggsave("../figs/avida_env_complexity.png")
 ```
 
+These certainly have the appearance of a different long-term trend. We'd need to do stats, but it seemes like there's a good chance logic-9 keeps going up. Either way, logic-9 is clearly higher, which makes sense because the environment is more complex.
+
 ```{r}
 ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=complexity, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Complexity") + geom_hline(yintercept=c(1,1), linetype="dotted")  + theme(legend.position="None")
 ggsave("../figs/avida_env_complexity_end.png")
 ```
 
+Driving home the point that logic-9 has higher complexity. Interesting that population size has so little effect.
+
 # NK Landscape Analysis
 
 First we need to clean up the NK dataframe a little
 
-
 ```{r}
 
-#Order treatments correctly
+# Label treatments correctly
 nk_data <- transform(nk_data, treatment = case_when(
     K == 10 ~ "High K\n(10)", 
     N == 100 ~ "High N\n(100)", 
@@ -173,17 +238,26 @@ nk_data <- transform(nk_data, treatment = case_when(
     TRUE   ~ "Base" 
 ))
 
+# Make things that we're treating as factors into factors
 nk_data$POP_SIZE <- as.factor(nk_data$POP_SIZE)
 nk_data$MUT_RATE <- as.factor(nk_data$MUT_RATE)
+
+# Order treatments such that axis labels don't overlap
 nk_data$treatment <- factor(nk_data$treatment, levels=c("Base",  "Low\nmutation\n(.005)","High\nmutation\n(.1)","Small\npop\n(20)","Large\npop\n(2000)","Oscillating\nenvironment","High K\n(10)","High N\n(100)", "Changing\nenvironment", "Fitness\nsharing"))
 
+# Grab some useful subset of data
+
+# The final generation for all runs
 nk_endpoints <- nk_data %>% filter(generation == 5000)
+
+# Only the runs where we used t equal to population size
 nk_filter_pop_size <- nk_data %>% filter(FILTER_LENGTH == POP_SIZE, treatment != "Changing\nenvironment")
+# The ends of those runs
 nk_filter_pop_size_endpoints <- nk_filter_pop_size %>% filter(generation == 5000)
 
 ```
 
-### Change
+## Change
 
 First lets take a look at change over time across conditions
 
@@ -205,7 +279,7 @@ ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=change, fill=treatm
 ggsave("../figs/changeboxplots.png")
 ```
 
-### Novelty
+## Novelty
 
 ```{r}
 ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=novelty, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Novelty") + scale_color_discrete("") + scale_fill_discrete("")
@@ -228,7 +302,7 @@ ggsave("../figs/noveltyboxplots.png")
 
 ```
 
-### Ecology
+## Ecology
 
 ```{r}
 ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=ecology, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Ecology") + scale_color_discrete("") + scale_fill_discrete("")
@@ -244,7 +318,7 @@ ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=ecology, fill=treat
 ggsave("../figs/ecologyboxplots.png")
 ```
 
-### Complexity
+## Complexity
 
 ```{r}
 ggplot(data=nk_filter_pop_size) + stat_summary(fun.data = mean_cl_boot, aes(y=complexity, x=generation, color=treatment, fill=treatment), geom="smooth") + scale_x_continuous("Generation") + scale_y_continuous("Complexity") + scale_color_discrete("") + scale_fill_discrete("")
