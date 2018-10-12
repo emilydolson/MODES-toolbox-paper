@@ -42,6 +42,30 @@ EMP_BUILD_CONFIG( NKConfig,
 
 using BitOrg = emp::BitVector;
 
+// Special version for bistrings
+// The reason the org can't be const is that it needs to get plugged into the fitness function, 
+// which may not be const
+emp::vector<int> Skeletonize(emp::BitVector & org, std::function<double(emp::BitVector&)> fit_fun) {
+    emp_assert(org.size() > 0, "Empty org passed to skeletonize");
+
+    emp::vector<int> skeleton;
+    double fitness = fit_fun(org);
+    emp::BitVector test_org = emp::BitVector(org);
+
+    for (size_t i = 0; i < org.size(); i++) {
+        test_org[i] = !test_org[i]; // For bit strings we just flip the bit
+        double new_fitness = fit_fun(test_org);
+        if (new_fitness < fitness) {
+            skeleton.push_back(org[i]);
+        } else {
+            skeleton.push_back(-1);
+        }
+        test_org[i] = (int)org[i];
+    }
+
+    return skeleton;
+}
+
 class NKWorld : public emp::World<BitOrg> {
 
     enum class SELECTION_METHOD { TOURNAMENT=0, SHARING=1, LEXICASE=2, ECOEA=3, RANDOM=4 };
@@ -64,7 +88,7 @@ class NKWorld : public emp::World<BitOrg> {
     emp::vector<emp::NKLandscape> landscapes;
     int curr_landscape = 0;
 
-    emp::Ptr<emp::OEETracker<BitOrg, BitOrg, emp::vector<int>>> oee;
+    emp::Ptr<emp::OEETracker<emp::Systematics<BitOrg, BitOrg>, emp::vector<int>>> oee;
     emp::DataFile oee_file;
 
     public:
@@ -105,7 +129,7 @@ class NKWorld : public emp::World<BitOrg> {
 
         emp::Ptr<emp::Systematics<BitOrg, BitOrg> > sys;
         sys.New([](const BitOrg & o){return o;});
-        oee.New(sys, [fit_fun](BitOrg & org){return emp::Skeletonize(org, fit_fun);}, [](const emp::vector<int> & org){
+        oee.New(sys, [fit_fun](BitOrg & org){return Skeletonize(org, fit_fun);}, [](const emp::vector<int> & org){
             return org.size() - emp::Count(org, -1);
         });
         oee->SetResolution(MODES_RESOLUTION);
@@ -119,7 +143,11 @@ class NKWorld : public emp::World<BitOrg> {
         SetupPopulationFile().SetTimingRepeat(10);
         SetPopStruct_Mixed(true);
         SetSynchronousSystematics(true);
-        SetCache();
+
+        if (SELECTION == (uint32_t)SELECTION_METHOD::TOURNAMENT) {
+            SetCache();
+        }
+
 
         oee_file.AddVar(update, "generation", "Generation");
         oee_file.AddCurrent(*oee->GetDataNode("change"), "change", "change potential");
@@ -135,10 +163,6 @@ class NKWorld : public emp::World<BitOrg> {
             for (uint32_t j = 0; j < N; j++) next_org[j] = random_ptr->P(0.5);
             Inject(next_org);
         }
-            // Resize(POP_SIZE);
-            // emp::EliteSelect(*this, 1, POP_SIZE);
-            // Update();
-            // std::cout << GetNumOrgs() << " orgs" << std::endl;
 
         // Setup the mutation function.
         std::function<size_t(BitOrg &, emp::Random &)> mut_fun =
@@ -190,6 +214,8 @@ class NKWorld : public emp::World<BitOrg> {
     }
 
     void DoChange() {
+        ClearCache();
+        
         switch(CHANGE_TYPE) {
             case (uint32_t)CHANGE_METHOD::COMPLETE :
                 ChangeComplete();
