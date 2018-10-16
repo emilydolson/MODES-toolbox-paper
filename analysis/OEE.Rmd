@@ -29,6 +29,9 @@ library(tidyr)
 # flat-violin geom will be needed for raincloud plots
 source("geom_flat_violin.R")
 
+# Function for calculating Glass's delta (effect size)
+glass_delta <- function(m_exp, m_cont, sd_cont) {return (m_exp - m_cont)/sd_cont}
+
 # Set up theme for all plots
 theme_set(theme_classic())
 theme_update(axis.title = element_text(size=18), axis.text = element_text(size=12), legend.text = element_text(size=14), legend.title = element_text(size=14), legend.position = "bottom", strip.text = element_text(size=18))
@@ -143,7 +146,7 @@ ggsave("../figs/avida_env_novelty.png")
 ```
 
 ```{r}
-ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=novelty, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Novelty") + geom_hline(yintercept=c(1,1), linetype="dotted")  + theme(legend.position="None")
+ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=novelty, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Novelty") + theme(legend.position="None")
 ggsave("../figs/avida_env_novelty_end.png")
 ```
 
@@ -178,7 +181,7 @@ ggsave("../figs/avida_env_ecology.png")
 ```
 
 ```{r}
-ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=ecology, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Ecology") + geom_hline(yintercept=c(1,1), linetype="dotted")  + theme(legend.position="None")
+ggplot(data=env_comp_end, aes(x=as.factor(population_size), y=ecology, fill=as.factor(population_size))) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = as.factor(filter)), position = position_jitter(width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + facet_wrap(~environment, scales = "free_x") + scale_x_discrete("Population size") + scale_y_continuous("Ecology") +  theme(legend.position="None")
 ggsave("../figs/avida_env_ecology_end.png")
 ```
 
@@ -279,6 +282,34 @@ ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=change, fill=treatm
 ggsave("../figs/changeboxplots.png")
 ```
 
+### Stats
+
+And now lets make sure that the things that look significantly different actually are. First we do a Kruskal-Wallis test to see if there are any differences among groups:
+
+```{r}
+kruskal.test(change ~ treatment, data = nk_filter_pop_size_endpoints)
+```
+
+Looks like there are. Now let's do post-hoc Wilcox tests vs the base treatment with a Bonferonni correction for multiple comparisons to see which of these differences are actually significant.
+
+```{r}
+p_vals <- data.frame(stringsAsFactors = FALSE)
+base_change <- nk_filter_pop_size_endpoints %>% filter(treatment == "Base")
+for (t in unique(as.character(nk_filter_pop_size_endpoints$treatment))) {
+    treat_change <- nk_filter_pop_size_endpoints %>% filter(treatment == t)
+    w <- wilcox.test(base_change$change, treat_change$change, exact = FALSE)
+    p_vals <- as.data.frame(rbind(p_vals, list(t, w$p.value)), stringsAsFactors=FALSE)
+    colnames(p_vals) <- c("treatment", "p")
+    p_vals$treatment <- as.character(p_vals$treatment)
+}
+
+p_vals$sig <- p_vals$p < .05/length(p_vals$p)
+
+p_vals
+```
+
+Yep, that's about what we'd expect (since oscillating environment doesn't end on an oscilation).
+
 ## Novelty
 
 ```{r}
@@ -302,6 +333,34 @@ ggsave("../figs/noveltyboxplots.png")
 
 ```
 
+### Stats
+
+And now lets make sure that the things that look significantly different actually are. First we do a Kruskal-Wallis test to see if there are any differences among groups:
+
+```{r}
+kruskal.test(novelty ~ treatment, data = nk_filter_pop_size_endpoints)
+```
+
+Looks like there are. Now let's do post-hoc Wilcox tests vs the base treatment with a Bonferonni correction for multiple comparisons to see which of these differences are actually significant.
+
+```{r}
+p_vals <- data.frame(stringsAsFactors = FALSE)
+base_novelty <- nk_filter_pop_size_endpoints %>% filter(treatment == "Base")
+for (t in unique(as.character(nk_filter_pop_size_endpoints$treatment))) {
+    treat_novelty <- nk_filter_pop_size_endpoints %>% filter(treatment == t)
+    w <- wilcox.test(base_novelty$novelty, treat_novelty$novelty, exact = FALSE)
+    p_vals <- as.data.frame(rbind(p_vals, list(t, w$p.value)), stringsAsFactors=FALSE)
+    colnames(p_vals) <- c("treatment", "p")
+    p_vals$treatment <- as.character(p_vals$treatment)
+}
+
+p_vals$sig <- p_vals$p < .05/length(p_vals$p)
+
+p_vals
+```
+
+Wow, it's really just the high mutation condition that's significant. That's a little surprising, but it looks consistent with the graphs.
+
 ## Ecology
 
 ```{r}
@@ -317,6 +376,34 @@ The endpoints are informative, though:
 ggplot(data=nk_filter_pop_size_endpoints, aes(x=treatment, y=ecology, fill=treatment)) + geom_flat_violin(position = position_nudge(x = .2, y = 0)) + geom_point(aes(color = treatment), position = position_jitter(height = .1, width = .15), alpha = 0.8) + stat_summary(fun.data="mean_cl_boot", show.legend = FALSE) + scale_y_continuous("Ecology")  + scale_x_discrete("") + theme(legend.position="None")
 ggsave("../figs/ecologyboxplots.png")
 ```
+
+### Stats
+
+And now lets make sure that the things that look significantly different actually are. First we do a Kruskal-Wallis test to see if there are any differences among groups:
+
+```{r}
+kruskal.test(ecology ~ treatment, data = nk_filter_pop_size_endpoints)
+```
+
+Looks like there are. Now let's do post-hoc Wilcox tests vs the base treatment with a Bonferonni correction for multiple comparisons to see which of these differences are actually significant.
+
+```{r}
+p_vals <- data.frame(stringsAsFactors = FALSE)
+base_ecology <- nk_filter_pop_size_endpoints %>% filter(treatment == "Base")
+for (t in unique(as.character(nk_filter_pop_size_endpoints$treatment))) {
+    treat_ecology <- nk_filter_pop_size_endpoints %>% filter(treatment == t)
+    w <- wilcox.test(base_ecology$ecology, treat_ecology$ecology, exact = FALSE)
+    p_vals <- as.data.frame(rbind(p_vals, list(t, w$p.value)), stringsAsFactors=FALSE)
+    colnames(p_vals) <- c("treatment", "p")
+    p_vals$treatment <- as.character(p_vals$treatment)
+}
+
+p_vals$sig <- p_vals$p < .05/length(p_vals$p)
+
+p_vals
+```
+
+As expected, only fitness sharing is significant.
 
 ## Complexity
 
@@ -338,3 +425,62 @@ ggsave("../figs/complexityboxplots.png")
 ```
 
 Oh, right, the re-implemented version of the NK Landscape incorporates fitness sharing into the fitness function itself (i.e. the one that is used for the complexity calculation). As a result, complexity in fitness sharing isn't actually decreased notably despite the fact that the population is presumably not sitting on an actual fitness peak in the NK Landscape. This is probably the correct way to measure it though, since fitness sharing does change the fitness landscape.
+
+### Stats
+
+And now lets make sure that the things that look significantly different actually are. First we do a Kruskal-Wallis test to see if there are any differences among groups:
+
+```{r}
+kruskal.test(complexity ~ treatment, data = nk_filter_pop_size_endpoints)
+```
+
+Looks like there are. Now let's do post-hoc Wilcox tests vs the base treatment with a Bonferonni correction for multiple comparisons to see which of these differences are actually significant.
+
+```{r}
+p_vals <- data.frame(stringsAsFactors = FALSE)
+base_complexity <- nk_filter_pop_size_endpoints %>% filter(treatment == "Base")
+for (t in unique(as.character(nk_filter_pop_size_endpoints$treatment))) {
+    treat_complexity <- nk_filter_pop_size_endpoints %>% filter(treatment == t)
+    w <- wilcox.test(base_complexity$complexity, treat_complexity$complexity, exact = FALSE)
+    p_vals <- as.data.frame(rbind(p_vals, list(t, w$p.value)), stringsAsFactors=FALSE)
+    colnames(p_vals) <- c("treatment", "p")
+    p_vals$treatment <- as.character(p_vals$treatment)
+}
+
+p_vals$sig <- p_vals$p < .05/length(p_vals$p)
+
+p_vals
+```
+
+
+## Effect sizes
+
+We've determined which changes are significant, but we should also determine whether they have a meaningful effect size. Since our groups will have different standard deviations, we use Glass's Delta. ~.2 is considered low, ~.5 is considered meduium, .8 is considered high.
+
+```{r}
+# Make data frame containing mean and standard deviation of all metrics for all treatmetns
+summary_df <- nk_filter_pop_size_endpoints %>% group_by(treatment) %>% 
+  summarise(mean_change = mean(change), 
+            sd_change = sd(change), 
+            mean_novelty = mean(novelty), 
+            sd_novelty = sd(novelty), 
+            mean_ecology = mean(ecology), 
+            sd_ecology = sd(ecology), 
+            mean_complexity = mean(complexity), 
+            sd_complexity = sd(complexity))
+
+# Take subset of that dataframe containing base treatment, for ease of calculating Glass's Delta
+base_df <- summary_df %>% filter(treatment == "Base")
+
+# Calculate effect sizes
+effect_sizes <- summary_df %>% 
+  transmute(treatment, 
+            glass_change = glass_delta(mean_change, base_df$mean_change, base_df$sd_change), 
+            glass_novelty = glass_delta(mean_novelty, base_df$mean_novelty, base_df$sd_novelty), 
+            glass_ecology = glass_delta(mean_ecology, base_df$mean_ecology, base_df$sd_ecology), 
+            glass_complexity = glass_delta(mean_complexity, base_df$mean_complexity, base_df$sd_complexity))
+
+effect_sizes
+```
+
+Okay, so those are generally medium-high for everything that is significant in the first place. Of course, the effect of high N on complexity is just ridiculous, as it should be.
