@@ -100,7 +100,7 @@
 \setlength\footskip{0pt}
 \thispagestyle{empty}        \pagestyle{empty}
 \flushbottom
-\twocolumn
+% \twocolumn
 \sloppy
 
 
@@ -116,7 +116,8 @@
  \begingroup % to make the footnote style local to the title
    \def\thefootnote{\fnsymbol{footnote}}
    \def\@makefnmark{\hbox to 0pt{$^{\@thefnmark}$\hss}}
-   \twocolumn[\@maketitle] \@thanks
+   %\twocolumn[\@maketitle] \@thanks
+   \@maketitle \@thanks
  \endgroup
 \setcounter{footnote}{0}
  \let\maketitle\relax \let\@maketitle\relax
@@ -199,53 +200,3 @@ Abstract}\vspace{0.5ex}\begin{quote}\small}{\par\end{quote}\vskip 1ex}
 \belowdisplayskip \abovedisplayskip
 \abovedisplayshortskip  0pt plus3pt%
 \belowdisplayshortskip  4pt plus3pt minus3pt%
-
-
-% Less leading in most fonts (due to the narrow columns)
-% The choices were between 1-pt and 1.5-pt leading
-
-\def\@normalsize{\@setsize\normalsize{11pt}\xpt\@xpt}   % 10 point on 11
-\def\small{\@setsize\small{10pt}\ixpt\@ixpt}            % 9 point on 10
-\def\footnotesize{\@setsize\footnotesize{10pt}\ixpt\@ixpt} % 9 point on 10
-\def\scriptsize{\@setsize\scriptsize{8pt}\viipt\@viipt} % 7 point on 8
-\def\tiny{\@setsize\tiny{7pt}\vipt\@vipt}               % 6 point on 7
-\def\large{\@setsize\large{12pt}\xipt\@xipt}            % 11 point on 12
-\def\Large{\@setsize\Large{14pt}\xiipt\@xiipt}          % 12 point on 14
-\def\LARGE{\@setsize\LARGE{16pt}\xivpt\@xivpt}          % 14 point on 16
-\def\huge{\@setsize\huge{20pt}\xviipt\@xviipt}          % 17 point on 20
-\def\Huge{\@setsize\Huge{23pt}\xxpt\@xxpt}              % 20 point on 23
-
-
-
-% The material below is apalike.sty.
-% It is included here because alife9.bst = apalike.bst required it.
-
-\def\@cite#1#2{(#1\if@tempswa , #2\fi)}
-\def\@biblabel#1{}
-
-% \newlength{\bibhang}     \\ Commented out as natbib defines it already
-\setlength{\bibhang}{2em}
-
-\@ifundefined{chapter}{\def\thebibliography#1{\section*{References\@mkboth
-  {REFERENCES}{REFERENCES}}\list
-  {\relax}{\setlength{\labelsep}{0em}
-    \setlength{\itemindent}{-\bibhang}
-    \setlength{\leftmargin}{\bibhang}}
-    \def\newblock{\hskip .11em plus .33em minus .07em}
-    \sloppy\clubpenalty4000\widowpenalty4000
-    \sfcode`\.=1000\relax}}%
-{\def\thebibliography#1{\chapter*{Bibliography\@mkboth
-  {BIBLIOGRAPHY}{BIBLIOGRAPHY}}\list
-  {\relax}{\setlength{\labelsep}{0em}
-    \setlength{\itemindent}{-\bibhang}
-    \setlength{\leftmargin}{\bibhang}}
-    \def\newblock{\hskip .11em plus .33em minus .07em}
-    \sloppy\clubpenalty4000\widowpenalty4000
-    \sfcode`\.=1000\relax}}
-
-\def\@citex[#1]#2{\if@filesw\immediate\write\@auxout{\string\citation{#2}}\fi
-  \def\@citea{}\@cite{\@for\@citeb:=#2\do
-    {\@citea\def\@citea{; }\@ifundefined
-       {b@\@citeb}{{\bf ?}\@warning
-       {Citation `\@citeb' on page \thepage \space undefined}}%
-{\csname b@\@citeb\endcsname}}}{#1}}
